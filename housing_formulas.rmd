@@ -1,0 +1,328 @@
+---
+title: "housing_formulas.rmd"
+output: html_document
+date: "2023-04-30"
+---
+
+```{r}
+install.packages("tidyverse")
+install.packages("gapminder")
+
+```
+
+```{r}
+install.packages("writexl")
+```
+```{r}
+install.packages(ggplot2)
+```
+
+```{r}
+library(tidyverse)
+library(gapminder)
+library(readxl)
+library(writexl)
+library(ggplot2)
+```
+
+```{r}
+miami_average <- read_excel("Miami_Dade_Average_2018-2022.xlsx")
+miami_average
+```
+
+```{r}
+broward_average <- read_excel("Broward_Average_2018_2022.xlsx")
+broward_average
+```
+
+```{r}
+palm_average <- read_excel("Palm_Beach_Average_2018-2022.xlsx")
+palm_average
+```
+
+#Miami as a county and usuable 
+```{r}
+miami_pivot <- miami_average %>% pivot_longer(cols=-1)
+colnames(miami_pivot)[1] <- "Date"
+colnames(miami_pivot)[2] <- "Year_of_Sale"
+colnames(miami_pivot)[3] <- "Average_Price"
+miami_pivot$County <- rep("Miami_Dade", nrow(miami_pivot))
+```
+
+#Broward 
+```{r}
+bro_pivot <- broward_average %>% pivot_longer(cols=-1)
+colnames(bro_pivot)[1] <- "Date"
+colnames(bro_pivot)[2] <- "Year_of_Sale"
+colnames(bro_pivot)[3] <- "Average_Price"
+bro_pivot$County <- rep("Broward", nrow(bro_pivot))
+```
+
+#PalmBeach 
+```{r}
+palm_pivot <- palm_average %>% pivot_longer(cols=-1)
+colnames(palm_pivot)[1] <- "Date"
+colnames(palm_pivot)[2] <- "Year_of_Sale"
+colnames(palm_pivot)[3] <- "Average_Price"
+palm_pivot$County <- rep("Palm_Beach", nrow(palm_pivot))
+```
+
+#Combining all new datasets into one 
+```{r}
+combined_counties <- rbind(bro_pivot, palm_pivot, miami_pivot)
+combined_counties$Date <- factor(combined_counties$Date, levels = c("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"))
+```
+
+```{r}
+combined_counties$Year_of_Sale <- gsub("Average_Sale_Price_2018", "2018", combined_counties$Year_of_Sale)
+```
+
+```{r}
+combined_counties$Year_of_Sale <- gsub("Average_Sale_Price_2019", "2019", combined_counties$Year_of_Sale)
+
+combined_counties$Year_of_Sale <- gsub("Average_Sale_Price_2020", "2020", combined_counties$Year_of_Sale)
+
+combined_counties$Year_of_Sale <- gsub("Average_Sale_Price_2021", "2021", combined_counties$Year_of_Sale)
+
+combined_counties$Year_of_Sale <- gsub("Average_Sale_Price_2022", "2022", combined_counties$Year_of_Sale)
+
+combined_counties$Year_of_Sale <- gsub("Average_Sale_Price_2023", "203", combined_counties$Year_of_Sale)
+```
+
+
+#exporting the excel as one 
+```{r}
+write_xlsx(combined_counties, "Counties_Average.xlsx")
+
+
+a <- 1:12
+a
+```
+
+#Now creating the graph that will show the different prices by year 
+```{r}
+p <- ggplot(data = combined_counties, 
+            mapping = aes(x = Date, 
+                          y = Average_Price)) + 
+  geom_point(mapping = aes(color = Year_of_Sale)) +
+  labs(title = "Average Price Per Month",
+       x = "Month",
+       y = "Price")
+p
+```
+
+
+
+
+#Next table to be done 
+```{r}
+broward <- read_excel("LuxuryHousesBroward.xlsx")
+broward
+```
+
+#Give dbl to the columns ill use 
+```{r}
+broward$City <- factor(broward$City)
+broward$Sold_Price <- as.double(broward$Sold_Price)
+broward$Sold_Date <- factor(broward$Sold_Date)
+broward$Bedrooms <- as.double(broward$Bedrooms)
+```
+
+#Creating the data set with the infor I will actually use 
+```{r}
+broward_county <- broward[,c(1,3,11,12,23)]
+colnames(broward_county)[1] <- "Listing_Number"
+colnames(broward_county)[2] <- "City"
+colnames(broward_county)[3] <- "Price"
+colnames(broward_county)[4] <- "Date"
+colnames(broward_county)[5] <- "Bedrooms"
+```
+
+```{r}
+broward_county$Year <- year(as.Date(broward_county$Date))
+broward_county <- select(broward_county, -Date)
+```
+
+
+```{r}
+write_xlsx(broward_county, "broward_file.xlsx")
+```
+
+
+```{r}
+library(ggplot2)
+```
+
+
+#By Bedrooms
+```{r}
+facet <- ggplot(data = broward_county, 
+            mapping = aes(x = Year, 
+                          y = Price)) + 
+  geom_point(mapping = aes(color = factor(Bedrooms))) + 
+ scale_y_log10(labels = scales::dollar) +
+  theme(axis.text.x=element_text(angle=90)) +
+  facet_wrap(~City)
+facet
+```
+
+
+
+
+
+
+
+
+
+
+
+
+#Last graph 
+```{r}
+water <- read_excel("WaterFront_Broward.xlsx")
+water
+```
+
+
+
+#Deleting the yyyy-mm-dd column and making it a year only column 
+```{r}
+water$Year <- year(as.Date(water$Sold_Date))
+water <- select(water, -Sold_Date)
+```
+
+```{r}
+water <- water[!(water$Year %in% c(2018, 2019)),]
+```
+
+
+
+```{r}
+plot <- ggplot(data = water,
+            mapping = aes(x = Year,
+                          y = Sold_Price,
+                          fill = Water_Front)) + 
+            geom_bar(stat = "identity", position = "dodge") + 
+            theme(legend.position = "top") +
+            scale_y_log10(labels = scales::dollar)
+plot
+```
+
+
+
+# I am going to find the average price of houses with front or no by year by county 
+```{r}
+yes <- water[water$Water_Front == "Y", ]
+no <- water[water$Water_Front == "N", ]
+```
+
+
+#Separating yes and no by city 
+```{r}
+yes_fl <- yes[yes$City == "Fort Lauderdale", ]
+yes_hll <- yes[yes$City == "Hollywood", ]
+yes_ppb <- yes[yes$City == "Pompano Beach", ]
+yes_wm <- yes[yes$City == "Wilton Manors", ]
+yes_lbts <- yes[yes$City == "Lauderdale By The Sea", ]
+```
+
+
+```{r}
+no_fl <- no[no$City == "Fort Lauderdale", ]
+no_hll <- no[no$City == "Hollywood", ]
+no_ppb <- no[no$City == "Pompano Beach", ]
+no_wm <- no[no$City == "Wilton Manors", ]
+no_lbts <- no[no$City == "Lauderdale By The Sea", ]
+```
+
+```{r}
+library(magrittr)
+```
+
+```{r}
+library(dplyr)
+
+```
+
+#Find average prices by years by waterfront and adding the yes column and city column 
+```{r}
+yes_fl_price <- yes_fl %>% 
+  group_by(Year) %>% 
+  summarize(avg_price = mean(Sold_Price))
+  yes_fl_price$Water_Front <- rep("Y", nrow(yes_fl_price))
+  yes_fl_price$City <- rep("Fort Lauderdale", nrow(yes_fl_price))
+
+yes_hll_price <- yes_hll %>% 
+  group_by(Year) %>% 
+  summarize(avg_price = mean(Sold_Price))
+  yes_hll_price$Water_Front <- rep("Y", nrow(yes_hll_price))
+  yes_hll_price$City <- rep("Hollywood", nrow(yes_hll_price))
+
+yes_ppb_price <- yes_ppb %>% 
+  group_by(Year) %>% 
+  summarize(avg_price = mean(Sold_Price))
+  yes_ppb_price$Water_Front <- rep("Y", nrow(yes_ppb_price))
+  yes_ppb_price$City <- rep("Pompano Beach", nrow(yes_ppb_price))
+
+yes_wm_price <- yes_wm %>% 
+  group_by(Year) %>% 
+  summarize(avg_price = mean(Sold_Price))
+  yes_wm_price$Water_Front <- rep("Y", nrow(yes_wm_price))
+  yes_wm_price$City <- rep("Wilton Manors", nrow(yes_wm_price))
+
+yes_lbts_price <- yes_lbts %>% 
+  group_by(Year) %>% 
+  summarize(avg_price = mean(Sold_Price))
+  yes_lbts_price$Water_Front <- rep("Y", nrow(yes_lbts_price))
+  yes_lbts_price$City <- rep("Lauderdale By The Sea", nrow(yes_lbts_price))
+
+```
+
+
+```{r}
+no_fl_price <- no_fl %>% 
+  group_by(Year) %>% 
+  summarize(avg_price = mean(Sold_Price))
+  no_fl_price$Water_Front <- rep("N", nrow(no_fl_price))
+  no_fl_price$City <- rep("Fort Lauderdale", nrow(no_fl_price))
+
+no_hll_price <- no_hll %>% 
+  group_by(Year) %>% 
+  summarize(avg_price = mean(Sold_Price))
+  no_hll_price$Water_Front <- rep("N", nrow(no_hll_price))
+  no_hll_price$City <- rep("Hollywood", nrow(no_hll_price))
+
+no_ppb_price <- no_ppb %>% 
+  group_by(Year) %>% 
+  summarize(avg_price = mean(Sold_Price))
+  no_ppb_price$Water_Front <- rep("N", nrow(no_ppb_price))
+  no_ppb_price$City <- rep("Pompano Beach", nrow(no_ppb_price))
+
+no_wm_price <- no_wm %>% 
+  group_by(Year) %>% 
+  summarize(avg_price = mean(Sold_Price))
+  no_wm_price$Water_Front <- rep("N", nrow(no_wm_price))
+  no_wm_price$City <- rep("Wilton Manors", nrow(no_wm_price))
+
+no_lbts_price <- no_lbts %>% 
+  group_by(Year) %>% 
+  summarize(avg_price = mean(Sold_Price))
+  no_lbts_price$Water_Front <- rep("N", nrow(no_lbts_price))
+  no_lbts_price$City <- rep("Lauderdale By The Sea", nrow(no_lbts_price))
+```
+
+#Combining all the average prices in one file 
+```{r}
+broward_cities <- rbind(no_lbts_price, no_wm_price, no_ppb_price, no_hll_price, no_fl_price, yes_lbts_price, yes_wm_price, yes_ppb_price, yes_hll_price, yes_fl_price)
+
+```
+
+```{r}
+write_xlsx(broward_cities, "water.xlsx")
+```
+
+
+```{r}
+write_xlsx(water, "3tab.xlsx")
+```
+
